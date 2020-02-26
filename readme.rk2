@@ -1,0 +1,73 @@
+# patches from git commit 08c77e53b94ccf072c7dc6a9d3ebd9f088deaf7e of
+# https://github.com/paolosabatino/armbian-build.git - branch rkrk29 - path: patch/kernel/rk322x-current
+# kernel config armbian-build-rk332x/config/kernel/linux-rkrk2x-current.config
+# disabled LIMA for now
+#
+# directories:
+# - /compile/doc/stable-r2 - the files in this dir
+# - /compile/source/linux-stable-r2 - the kernel sources checked out from gitrepo
+# - /compile/result/stable-r2 - the resulting kernel, modules etc. tar.gz files
+#
+# patches:
+# not sure if this is needed - if yes it might get adapted for the 4.4 rockchip kernel
+# set mac addr on kernel cmdline - otherwise a random one is generated
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/gen-stmmac-mac-addr-on-kernel-cmdline-v5.3.patch
+#
+# armbian patches:
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-0001-rockchip-from-5.5.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-0002-rockchip-from-5.6.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-0003-rockchip-from-list.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-0004-work-in-progress.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-0005-for-libreelec.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-0006-experimental.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-0011-v4l2-from-5.5.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-0013-v4l2-from-list.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-0014-v4l2-work-in-progress.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-1000-fixup-rk3228-clks.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-1002-rk322x-dts.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-1003-rk322x-hantro.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-9000-rk322x-allow-420.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-9000-rk322x-use-2nd-vop-plane-as-overlay.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-9000-rockchip-vop-reject-interlanced-modes.patch
+#patch -p1 -N < /compile/doc/stable-r2/misc.rk2/02-003-dtsi-adjust-gpu-node-for-r7p0.patch.disabled
+#patch -p1 -N < /compile/doc/stable-r2/misc.rk2/2006-soc-rockchip-power-domain-export-idle-request.patch.disabled
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/board-r329q-add-device-tree.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/board-rk322x-add-dts-makefiles.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/board-xt-mx4vr-v01-add-device-tree.patch
+patch -p1 -N < /compile/doc/stable-r2/misc.rk2/dtsi-rk322x-add-generic-tvbox.patch
+#patch -p1 -N < /compile/doc/stable-r2/misc.rk2/general-add-overlay-compilation-support.patch.disabled
+#patch -p1 -N < /compile/doc/stable-r2/misc.rk2/general-add-overlay-configfs.patch.disabled
+#patch -p1 -N < /compile/doc/stable-r2/misc.rk2/general-increasing_DMA_block_memory_allocation_to_2048.patch.disabled
+# compile fix
+#patch -p0 < /compile/doc/rockchip-rk332x/misc.rk2/zzz-fix-ssv6xxx-compile.patch
+
+
+cp /compile/doc/stable-r2/config.rk2 /compile/source/linux-stable-r2/.config
+cd /compile/source/linux-stable-r2
+export ARCH=arm
+# make multi_v7_defconfig + fix options - see misc.rk2/options
+make oldconfig
+make -j 4 zImage dtbs modules
+export kver=`make kernelrelease`
+echo ${kver}
+# remove debug info if there and not wanted
+# find . -type f -name '*.ko' | sudo xargs -n 1 objcopy --strip-unneeded
+make modules_install
+# make headers_install INSTALL_HDR_PATH=/usr
+cp -v .config /boot/config-${kver}
+# for all except amlogic 32bit socs
+cp -v arch/arm/boot/zImage /boot/zImage-${kver}
+# for amlogic 32bit socs (legacy u-boot)
+mkimage -A arm -O linux -T kernel -C none -a 0x00208000 -e 0x00208000 -n linux-${kver} -d arch/arm/boot/zImage /boot/uImage-${kver}
+mkdir -p /boot/dtb-${kver}
+cp -v arch/arm/boot/dts/rk3228*.dtb /boot/dtb-${kver}
+cp -v arch/arm/boot/dts/rk3229*.dtb /boot/dtb-${kver}
+cp -v System.map /boot/System.map-${kver}
+cd /boot
+update-initramfs -c -k ${kver}
+mkimage -A arm -O linux -T ramdisk -a 0x0 -e 0x0 -n initrd.img-${kver} -d initrd.img-${kver} uInitrd-${kver}
+tar cvzf /compile/source/linux-stable-r2/${kver}.tar.gz /boot/*-${kver} /lib/modules/${kver}
+cp -v /compile/doc/stable-r2/config.rk2 /compile/doc/stable-r2/config.rk2.old
+cp -v /compile/source/linux-stable-r2/.config /compile/doc/stable-r2/config.rk2
+cp -v /compile/source/linux-stable-r2/.config /compile/doc/stable-r2/config.rk2-${kver}
+cp -v /compile/source/linux-stable-r2/*.tar.gz /compile/result/stable-r2

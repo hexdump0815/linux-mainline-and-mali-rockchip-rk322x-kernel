@@ -1,0 +1,44 @@
+# all below is based on ubuntu 18.04 and might differ for other dists
+# other things required:
+- user in video group
+usermod -a -G video <username>
+- mali udev rules
+root@odroid:~# cat /etc/udev/rules.d/50-mali.rules 
+KERNEL=="mali", MODE="0660", GROUP="video"
+KERNEL=="mali0", MODE="0660", GROUP="video"
+- xorg.conf
+01-armsoc.conf
+
+# mali kernel module - utgard
+git clone https://github.com/LibreELEC/mali-utgard.git
+mv mali-utgard rockchip-rk322x-mali-utgard
+cd rockchip-rk322x-mali-utgard
+#git checkout DX910-SW-99002-r7p0-00rel1
+git checkout DX910-SW-99002-r9p0-01rel0-multiplatform
+export ARCH=arm
+KDIR=/compile/source/linux-stable-r2 USING_UMP=0 BUILD=debug MALI_DMA_BUF_MAP_ON_ATTACH=1 USING_PROFILING=0 MALI_PLATFORM=rk USING_DVFS=0 USING_DT=1 CROSS_COMPILE= make -C `pwd`/driver/src/devicedrv/mali
+export kver=5.2.0-stb-rkc+
+mkdir /lib/modules/${kver}/extra
+cp driver/src/devicedrv/mali/mali.ko /lib/modules/${kver}/extra
+tar czf /compile/result/stable-r2/${kver}-mali-rk322x.tar.gz /lib/modules/${kver}/extra/mali.ko
+# clean up the extra dir for possible further pure kernel packaging
+rm -rf /lib/modules/${kver}/extra
+
+# TODO: cursor patch (?)
+# xorg server
+apt-get install xserver-xorg-dev libtool automake xutils-dev libudev-dev
+git clone https://github.com/paolosabatino/xf86-video-armsoc.git
+mv xf86-video-armsoc rockchip-xf86-video-armsoc
+cd rockchip-xf86-video-armsoc
+./autogen.sh
+make
+result: src/.libs/armsoc_drv.so
+
+# gl4es
+git clone https://github.com/ptitSeb/gl4es.git
+cd gl4es
+apt-get install cmake
+cd gl4es
+cmake . -DODROID=1
+make
+result: lib/libGl.so.1

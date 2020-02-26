@@ -1,0 +1,1020 @@
+diff --git a/arch/arm/boot/dts/rk322x.dtsi b/arch/arm/boot/dts/rk322x.dtsi
+index 16ad240d5f..3e84abba32 100644
+--- a/arch/arm/boot/dts/rk322x.dtsi
++++ b/arch/arm/boot/dts/rk322x.dtsi
+@@ -5,6 +5,7 @@
+ #include <dt-bindings/interrupt-controller/arm-gic.h>
+ #include <dt-bindings/pinctrl/rockchip.h>
+ #include <dt-bindings/clock/rk3228-cru.h>
++#include <dt-bindings/power/rk3228-power.h>
+ #include <dt-bindings/thermal/thermal.h>
+ 
+ / {
+@@ -14,6 +15,7 @@
+ 	interrupt-parent = <&gic>;
+ 
+ 	aliases {
++		ethernet0 = &gmac;
+ 		serial0 = &uart0;
+ 		serial1 = &uart1;
+ 		serial2 = &uart2;
+@@ -71,6 +73,8 @@
+ 		compatible = "operating-points-v2";
+ 		opp-shared;
+ 
++		clocks = <&cru PLL_APLL>;
++
+ 		opp-408000000 {
+ 			opp-hz = /bits/ 64 <408000000>;
+ 			opp-microvolt = <950000>;
+@@ -154,6 +158,7 @@
+ 		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
++		#sound-dai-cells = <0>;
+ 		clock-names = "i2s_clk", "i2s_hclk";
+ 		clocks = <&cru SCLK_I2S1>, <&cru HCLK_I2S1_8CH>;
+ 		dmas = <&pdma 14>, <&pdma 15>;
+@@ -169,6 +174,7 @@
+ 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
++		#sound-dai-cells = <0>;
+ 		clock-names = "i2s_clk", "i2s_hclk";
+ 		clocks = <&cru SCLK_I2S0>, <&cru HCLK_I2S0_8CH>;
+ 		dmas = <&pdma 11>, <&pdma 12>;
+@@ -186,9 +192,27 @@
+ 		dma-names = "tx";
+ 		pinctrl-names = "default";
+ 		pinctrl-0 = <&spdif_tx>;
++		#sound-dai-cells = <0>;
+ 		status = "disabled";
+ 	};
+ 
++	spdif_out: spdif-out {
++		compatible = "linux,spdif-dit";
++		#sound-dai-cells = <0>;
++		status = "disabled";
++	};
++	spdif_sound: spdif-sound {
++		compatible = "simple-audio-card";
++		simple-audio-card,name = "SPDIF";
++		status = "disabled";
++		simple-audio-card,cpu {
++			sound-dai = <&spdif>;
++		};
++		simple-audio-card,codec {
++			sound-dai = <&spdif_out>;
++		};
++	};
++
+ 	i2s2: i2s2@100e0000 {
+ 		compatible = "rockchip,rk3228-i2s", "rockchip,rk3066-i2s";
+ 		reg = <0x100e0000 0x4000>;
+@@ -263,6 +287,27 @@
+ 				status = "disabled";
+ 			};
+ 		};
++
++		power: power-controller {
++			compatible = "rockchip,rk3228-power-controller";
++			#power-domain-cells = <1>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			status = "okay";
++
++			pd_vpu@RK3228_PD_VPU {
++				reg = <RK3228_PD_VPU>;
++				clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
++			};
++
++			pd_rkvdec@RK3228_PD_RKVDEC {
++				reg = <RK3228_PD_RKVDEC>;
++				clocks = <&cru ACLK_RKVDEC>,
++					 <&cru HCLK_RKVDEC>,
++					 <&cru SCLK_VDEC_CABAC>,
++					 <&cru SCLK_VDEC_CORE>;
++			};
++		};
+ 	};
+ 
+ 	uart0: serial@11010000 {
+@@ -301,7 +346,7 @@
+ 		clocks = <&cru SCLK_UART2>, <&cru PCLK_UART2>;
+ 		clock-names = "baudclk", "apb_pclk";
+ 		pinctrl-names = "default";
+-		pinctrl-0 = <&uart2_xfer>;
++		pinctrl-0 = <&uart21_xfer>;
+ 		reg-shift = <2>;
+ 		reg-io-width = <4>;
+ 		status = "disabled";
+@@ -460,13 +505,13 @@
+ 			<&cru PLL_CPLL>, <&cru ACLK_PERI>,
+ 			<&cru HCLK_PERI>, <&cru PCLK_PERI>,
+ 			<&cru ACLK_CPU>, <&cru HCLK_CPU>,
+-			<&cru PCLK_CPU>;
++			<&cru PCLK_CPU>, <&cru ACLK_VOP>;
+ 		assigned-clock-rates =
+-			<594000000>, <816000000>,
++			<1200000000>, <816000000>,
+ 			<500000000>, <150000000>,
+ 			<150000000>, <75000000>,
+ 			<150000000>, <150000000>,
+-			<75000000>;
++			<75000000>, <400000000>;
+ 	};
+ 
+ 	thermal-zones {
+@@ -573,7 +618,8 @@
+ 		interrupt-names = "vpu_mmu";
+ 		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+ 		clock-names = "aclk", "iface";
+-		iommu-cells = <0>;
++		power-domains = <&power RK3228_PD_VPU>;
++		#iommu-cells = <0>;
+ 		status = "disabled";
+ 	};
+ 
+@@ -584,7 +630,8 @@
+ 		interrupt-names = "vdec_mmu";
+ 		clocks = <&cru ACLK_RKVDEC>, <&cru HCLK_RKVDEC>;
+ 		clock-names = "aclk", "iface";
+-		iommu-cells = <0>;
++		power-domains = <&power RK3228_PD_RKVDEC>;
++		#iommu-cells = <0>;
+ 		status = "disabled";
+ 	};
+ 
+@@ -628,7 +675,7 @@
+ 		interrupt-names = "iep_mmu";
+ 		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
+ 		clock-names = "aclk", "iface";
+-		iommu-cells = <0>;
++		#iommu-cells = <0>;
+ 		status = "disabled";
+ 	};
+ 
+@@ -648,6 +695,7 @@
+ 		phys = <&hdmi_phy>;
+ 		phy-names = "hdmi";
+ 		rockchip,grf = <&grf>;
++		#sound-dai-cells = <0>;
+ 		status = "disabled";
+ 
+ 		ports {
+@@ -662,6 +710,20 @@
+ 		};
+ 	};
+ 
++	hdmi_sound: hdmi-sound {
++		compatible = "simple-audio-card";
++		simple-audio-card,name = "HDMI";
++		simple-audio-card,format = "i2s";
++		simple-audio-card,mclk-fs = <128>;
++		status = "disabled";
++		simple-audio-card,cpu {
++			sound-dai = <&i2s0>;
++		};
++		simple-audio-card,codec {
++			sound-dai = <&hdmi>;
++		};
++	};
++
+ 	sdmmc: dwmmc@30000000 {
+ 		compatible = "rockchip,rk3228-dw-mshc", "rockchip,rk3288-dw-mshc";
+ 		reg = <0x30000000 0x4000>;
+@@ -669,9 +731,11 @@
+ 		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>,
+ 			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
+ 		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
++		bus-width = <4>;
+ 		fifo-depth = <0x100>;
++		max-frequency = <150000000>;
+ 		pinctrl-names = "default";
+-		pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_bus4>;
++		pinctrl-0 = <&sdmmc_pwr &sdmmc_clk &sdmmc_cmd &sdmmc_bus4>;
+ 		status = "disabled";
+ 	};
+ 
+@@ -681,8 +745,10 @@
+ 		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+ 		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>,
+ 			 <&cru SCLK_SDIO_DRV>, <&cru SCLK_SDIO_SAMPLE>;
++		bus-width = <4>;
+ 		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
+ 		fifo-depth = <0x100>;
++		max-frequency = <150000000>;
+ 		pinctrl-names = "default";
+ 		pinctrl-0 = <&sdio_clk &sdio_cmd &sdio_bus4>;
+ 		status = "disabled";
+@@ -692,14 +758,13 @@
+ 		compatible = "rockchip,rk3228-dw-mshc", "rockchip,rk3288-dw-mshc";
+ 		reg = <0x30020000 0x4000>;
+ 		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+-		clock-frequency = <37500000>;
+-		max-frequency = <37500000>;
+ 		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>,
+ 			 <&cru SCLK_EMMC_DRV>, <&cru SCLK_EMMC_SAMPLE>;
+ 		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
+ 		bus-width = <8>;
+ 		default-sample-phase = <158>;
+ 		fifo-depth = <0x100>;
++		max-frequency = <150000000>;
+ 		pinctrl-names = "default";
+ 		pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
+ 		resets = <&cru SRST_EMMC>;
+@@ -912,6 +977,10 @@
+ 						<1 RK_PC4 1 &pcfg_pull_none_drv_12ma>,
+ 						<1 RK_PC5 1 &pcfg_pull_none_drv_12ma>;
+ 			};
++
++			sdmmc_pwr: sdmmc-pwr {
++				rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
++			};
+ 		};
+ 
+ 		sdio {
+@@ -1093,12 +1162,20 @@
+ 			pwm1_pin: pwm1-pin {
+ 				rockchip,pins = <0 RK_PD6 2 &pcfg_pull_none>;
+ 			};
++
++			pwm1_pin_pull_down: pwm1-pin-pull-down {
++				rockchip,pins = <0 RK_PD6 RK_FUNC_2 &pcfg_pull_down>;
++			};
+ 		};
+ 
+ 		pwm2 {
+ 			pwm2_pin: pwm2-pin {
+ 				rockchip,pins = <1 RK_PB4 2 &pcfg_pull_none>;
+ 			};
++
++			pwm2_pin_pull_up: pwm2-pin-pull-up {
++				rockchip,pins = <1 RK_PB4 RK_FUNC_2 &pcfg_pull_up>;
++			};
+ 		};
+ 
+ 		pwm3 {
+@@ -1153,16 +1230,31 @@
+ 			};
+ 		};
+ 
++		uart1-1 {
++			uart11_xfer: uart11-xfer {
++				rockchip,pins = <3 RK_PB6 RK_FUNC_1 &pcfg_pull_up>,
++						<3 RK_PB5 RK_FUNC_1 &pcfg_pull_none>;
++			};
++
++			uart11_cts: uart11-cts {
++				rockchip,pins = <3 RK_PA7 RK_FUNC_1 &pcfg_pull_none>;
++			};
++
++			uart11_rts: uart11-rts {
++				rockchip,pins = <3 RK_PA6 RK_FUNC_1 &pcfg_pull_none>;
++			};
++
++			uart11_rts_gpio: uart11-rts-gpio {
++				rockchip,pins = <3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
++			};
++		};
++
+ 		uart2 {
+ 			uart2_xfer: uart2-xfer {
+ 				rockchip,pins = <1 RK_PC2 2 &pcfg_pull_up>,
+ 						<1 RK_PC3 2 &pcfg_pull_none>;
+ 			};
+ 
+-			uart21_xfer: uart21-xfer {
+-				rockchip,pins = <1 RK_PB2 2 &pcfg_pull_up>,
+-						<1 RK_PB1 2 &pcfg_pull_none>;
+-			};
+ 
+ 			uart2_cts: uart2-cts {
+ 				rockchip,pins = <0 RK_PD1 1 &pcfg_pull_none>;
+@@ -1172,5 +1264,23 @@
+ 				rockchip,pins = <0 RK_PD0 1 &pcfg_pull_none>;
+ 			};
+ 		};
++
++		uart2-1 {
++			uart21_xfer: uart21-xfer {
++				rockchip,pins = <1 RK_PB2 RK_FUNC_2 &pcfg_pull_up>,
++						<1 RK_PB1 RK_FUNC_2 &pcfg_pull_none>;
++			};
++		};
++
++		usb {
++			host_vbus_drv: host-vbus-drv {
++				rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
++			};
++
++			otg_vbus_drv: otg-vbus-drv {
++				rockchip,pins = <3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
++			};
++		};
++
+ 	};
+ };
+diff --git a/arch/arm/boot/dts/rk3229-cpu-opp.dtsi b/arch/arm/boot/dts/rk3229-cpu-opp.dtsi
+new file mode 100644
+index 0000000000..c9a20207d5
+--- /dev/null
++++ b/arch/arm/boot/dts/rk3229-cpu-opp.dtsi
+@@ -0,0 +1,52 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++/*
++ * Copyright (c) 2017 Fuzhou Rockchip Electronics Co., Ltd
++ */
++
++/ {
++	compatible = "rockchip,rk3229";
++
++	/delete-node/ opp-table0;
++
++	cpu0_opp_table: opp_table0 {
++		compatible = "operating-points-v2";
++		opp-shared;
++
++		clocks = <&cru PLL_APLL>;
++
++		opp-408000000 {
++			opp-hz = /bits/ 64 <408000000>;
++			opp-microvolt = <950000>;
++			clock-latency-ns = <40000>;
++			opp-suspend;
++		};
++		opp-600000000 {
++			opp-hz = /bits/ 64 <600000000>;
++			opp-microvolt = <975000>;
++		};
++		opp-816000000 {
++			opp-hz = /bits/ 64 <816000000>;
++			opp-microvolt = <1000000>;
++		};
++		opp-1008000000 {
++			opp-hz = /bits/ 64 <1008000000>;
++			opp-microvolt = <1175000>;
++		};
++		opp-1200000000 {
++			opp-hz = /bits/ 64 <1200000000>;
++			opp-microvolt = <1275000>;
++		};
++		opp-1296000000 {
++			opp-hz = /bits/ 64 <1296000000>;
++			opp-microvolt = <1325000>;
++		};
++		opp-1392000000 {
++			opp-hz = /bits/ 64 <1392000000>;
++			opp-microvolt = <1375000>;
++		};
++		opp-1464000000 {
++			opp-hz = /bits/ 64 <1464000000>;
++			opp-microvolt = <1400000>;
++		};
++	};
++};
+diff --git a/arch/arm/boot/dts/rk322x-dcdc.dtsi b/arch/arm/boot/dts/rk322x-dcdc.dtsi
+new file mode 100644
+index 0000000000..fda42ead0b
+--- /dev/null
++++ b/arch/arm/boot/dts/rk322x-dcdc.dtsi
+@@ -0,0 +1,173 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++
++/dts-v1/;
++
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/pinctrl/rockchip.h>
++#include "rk322x.dtsi"
++
++/ {
++
++	dc_12v: dc-12v-regulator {
++		compatible = "regulator-fixed";
++		regulator-name = "dc_12v";
++		regulator-always-on;
++		regulator-boot-on;
++		regulator-min-microvolt = <12000000>;
++		regulator-max-microvolt = <12000000>;
++	};
++
++	vcc_host: vcc-host-regulator {
++		compatible = "regulator-fixed";
++		enable-active-high;
++		gpio = <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&host_vbus_drv>;
++		regulator-name = "vcc_host";
++		regulator-always-on;
++		regulator-boot-on;
++		vin-supply = <&vcc_sys>;
++	};
++
++	vcc_otg: vcc-otg-regulator {
++		compatible = "regulator-fixed";
++		gpio = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&otg_vbus_drv>;
++		regulator-name = "vcc_otg_vbus";
++		regulator-min-microvolt = <5000000>;
++		regulator-max-microvolt = <5000000>;
++		enable-active-high;
++		vin-supply = <&vcc_sys>;
++	};
++
++	vcc_sys: vcc-sys-regulator {
++		compatible = "regulator-fixed";
++		regulator-name = "vcc_sys";
++		regulator-always-on;
++		regulator-boot-on;
++		regulator-min-microvolt = <5000000>;
++		regulator-max-microvolt = <5000000>;
++		vin-supply = <&dc_12v>;
++	};
++
++	vccio_1v8: vccio-1v8-regulator {
++		compatible = "regulator-fixed";
++		regulator-name = "vccio_1v8";
++		regulator-min-microvolt = <1800000>;
++		regulator-max-microvolt = <1800000>;
++		regulator-always-on;
++		vin-supply = <&vcc_sys>;
++	};
++
++	vccio_3v3: vccio-3v3-regulator {
++		compatible = "regulator-fixed";
++		regulator-name = "vccio_3v3";
++		regulator-min-microvolt = <3300000>;
++		regulator-max-microvolt = <3300000>;
++		regulator-always-on;
++		vin-supply = <&vcc_sys>;
++	};
++
++	vcc_phy: vcc-phy-regulator {
++		compatible = "regulator-fixed";
++		enable-active-high;
++		regulator-name = "vcc_phy";
++		regulator-min-microvolt = <1800000>;
++		regulator-max-microvolt = <1800000>;
++		regulator-always-on;
++		regulator-boot-on;
++		vin-supply = <&vccio_1v8>;
++	};
++
++	vdd_arm: vdd-arm-regulator {
++		compatible = "pwm-regulator";
++		pwms = <&pwm1 0 5000 1>;
++		pwm-supply = <&vcc_sys>;
++		regulator-name = "vdd_arm";
++		regulator-min-microvolt = <950000>;
++		regulator-max-microvolt = <1400000>;
++		regulator-ramp-delay = <12500>;
++		regulator-settling-time-up-us = <250>;
++		regulator-always-on;
++		regulator-boot-on;
++	};
++
++	vdd_log: vdd-log-regulator {
++		compatible = "pwm-regulator";
++		pwms = <&pwm2 0 5000 1>;
++		pwm-supply = <&vcc_sys>;
++		regulator-name = "vdd_log";
++		regulator-min-microvolt = <1000000>;
++		regulator-max-microvolt = <1300000>;
++		regulator-ramp-delay = <12500>;
++		regulator-settling-time-up-us = <250>;
++		regulator-always-on;
++		regulator-boot-on;
++	};
++
++};
++
++
++&cpu0 {
++	cpu-supply = <&vdd_arm>;
++};
++
++&cpu1 {
++	cpu-supply = <&vdd_arm>;
++};
++
++&cpu2 {
++	cpu-supply = <&vdd_arm>;
++};
++
++&cpu3 {
++	cpu-supply = <&vdd_arm>;
++};
++
++&io_domains {
++	vccio1-supply = <&vccio_3v3>;
++	vccio2-supply = <&vccio_1v8>;
++	vccio4-supply = <&vccio_3v3>;
++	status = "okay";
++};
++
++&gmac {
++	phy-supply = <&vcc_phy>;
++};
++
++&gpu {
++	mali-supply = <&vdd_log>;
++};
++
++&pwm1 {
++	status = "okay";
++};
++
++&pwm2 {
++	status = "okay";
++};
++
++&u2phy0 {
++	u2phy0_host: host-port {
++		phy-supply = <&vcc_host>;
++		status = "okay";
++	};
++
++	u2phy0_otg: otg-port {
++		phy-supply = <&vcc_otg>;
++		status = "okay";
++	};
++};
++
++&u2phy1 {
++	u2phy1_host: host-port {
++		phy-supply = <&vcc_host>;
++		status = "okay";
++	};
++
++	u2phy1_otg: otg-port {
++		phy-supply = <&vcc_otg>;
++		status = "okay";
++	};
++};
+diff --git a/arch/arm/boot/dts/rk322x-box.dtsi b/arch/arm/boot/dts/rk322x-box.dtsi
+new file mode 100644
+index 0000000000..6a48c982b4
+--- /dev/null
++++ b/arch/arm/boot/dts/rk322x-box.dtsi
+@@ -0,0 +1,251 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++
++/dts-v1/;
++
++#include <dt-bindings/clock/rk3228-cru.h>
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/input/input.h>
++#include <dt-bindings/pinctrl/rockchip.h>
++#include "rk322x-dcdc.dtsi"
++
++/ {
++	model = "Rockchip RK322x Box";
++	compatible = "rockchip,rk3229";
++
++	chosen {
++		bootargs = "earlycon=uart8250,mmio32,0x11030000";
++	};
++
++	gpio_keys {
++		compatible = "gpio-keys";
++		#address-cells = <1>;
++		#size-cells = <0>;
++		autorepeat;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&pwr_key>;
++
++		power_key: power-key {
++			label = "GPIO Key Power";
++			gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_LOW>;
++			linux,code = <KEY_POWER>;
++			debounce-interval = <100>;
++			wakeup-source;
++			status = "disabled";
++		};
++	};
++
++	ir_receiver: ir-receiver {
++		compatible = "gpio-ir-receiver";
++		gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_LOW>;
++		pinctrl-0 = <&ir_int>;
++		pinctrl-names = "default";
++		status = "disabled";
++	};
++
++	memory@60000000 {
++		device_type = "memory";
++		reg = <0x60000000 0x40000000>;
++	};
++
++	reserved-memory {
++		#address-cells = <1>;
++		#size-cells = <1>;
++		ranges;
++
++		trust_reserved: trust@68400000 {
++			reg = <0x68400000 0xe00000>;
++			no-map;
++		};
++	};
++
++	sdio_pwrseq: sdio-pwrseq {
++		compatible = "mmc-pwrseq-simple";
++		pinctrl-names = "default";
++		pinctrl-0 = <&wifi_enable_h>;
++		reset-gpios = <&gpio2 RK_PD2 GPIO_ACTIVE_LOW>;
++	};
++};
++
++&cpu_alert0 {
++	temperature = <90000>;
++};
++
++&cpu_alert1 {
++	temperature = <105000>;
++};
++
++
++&cpu_crit {
++	temperature = <115000>;
++};
++
++&display_subsystem {
++	status = "okay";
++};
++
++&emmc {
++	cap-mmc-highspeed;
++	supports-emmc;
++	disable-wp;
++	non-removable;
++};
++
++&gmac {
++	assigned-clocks = <&cru SCLK_MAC_SRC>;
++	assigned-clock-rates = <50000000>;
++	clock_in_out = "output";
++	phy-handle = <&phy>;
++	phy-mode = "rmii";
++	status = "okay";
++
++	mdio {
++		compatible = "snps,dwmac-mdio";
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		phy: phy@0 {
++			compatible = "ethernet-phy-id1234.d400",
++			             "ethernet-phy-ieee802.3-c22";
++			reg = <0>;
++			clocks = <&cru SCLK_MAC_PHY>;
++			phy-is-integrated;
++			resets = <&cru SRST_MACPHY>;
++		};
++	};
++};
++
++&gpu {
++	status = "okay";
++};
++
++&hdmi {
++	status = "okay";
++};
++
++&hdmi_sound {
++	status = "okay";
++};
++
++&hdmi_phy {
++	status = "okay";
++};
++
++&i2s0 {
++	status = "okay";
++	rockchip,bclk-fs = <128>;
++};
++
++&pinctrl {
++
++	ir {
++		ir_int: ir-int {
++			rockchip,pins = <1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
++		};
++	};
++
++	keys {
++		pwr_key: pwr-key {
++			rockchip,pins = <3 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;
++		};
++	};
++
++	sdio-pwrseq {
++		wifi_enable_h: wifi-enable-h {
++			rockchip,pins = <2 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
++		};
++	};
++
++};
++
++&sdio {
++	cap-sd-highspeed;
++	cap-sdio-irq;
++	non-removable;
++	supports-sdio;
++};
++
++&sdmmc {
++	cap-sd-highspeed;
++	card-detect-delay = <200>;
++	num-slots = <1>;
++	supports-sd;
++};
++
++&spdif {
++	status = "okay";
++};
++
++&spdif_out {
++	status = "okay";
++};
++
++&spdif_sound {
++	status = "okay";
++};
++
++&tsadc {
++	rockchip,hw-tshut-mode = <0>;
++	rockchip,grf = <&grf>;
++	status = "okay";
++};
++
++&u2phy0 {
++	status = "okay";
++};
++
++&u2phy1 {
++	status = "okay";
++};
++
++&uart1 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&uart11_xfer &uart11_cts>;
++	status = "okay";
++};
++
++&uart2 {
++	status = "okay";
++};
++
++&usb_host0_ehci {
++	status = "okay";
++};
++
++&usb_host0_ohci {
++	status = "okay";
++};
++
++&usb_host1_ehci {
++	status = "okay";
++};
++
++&usb_host1_ohci {
++	status = "okay";
++};
++
++&usb_host2_ehci {
++	status = "okay";
++};
++
++&usb_host2_ohci {
++	status = "okay";
++};
++
++&usb_otg {
++	status = "okay";
++};
++
++&vop {
++	assigned-clocks = <&cru DCLK_VOP>;
++	assigned-clock-parents = <&cru SCLK_HDMI_PHY>;
++	status = "okay";
++};
++
++&vop_mmu {
++	status = "okay";
++};
++
++&wdt {
++	status = "okay";
++};
+diff --git a/arch/arm/boot/dts/rk3229-box.dtsi b/arch/arm/boot/dts/rk3229-box.dtsi
+new file mode 100644
+index 0000000000..79e2524e07
+--- /dev/null
++++ b/arch/arm/boot/dts/rk3229-box.dtsi
+@@ -0,0 +1,21 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++
++/dts-v1/;
++
++#include "rk322x-box.dtsi"
++#include "rk3229-cpu-opp.dtsi"
++
++/ {
++
++	model = "Rockchip RK3229 Box";
++	compatible = "rockchip,rk3229-box", "rockchip,rk3229";
++
++};
++
++&cpu0_opp_table {
++
++	opp-1464000000 {
++		status = "disabled";
++	};
++
++};
+diff --git a/arch/arm/boot/dts/rk3229-box-a95xr1.dts b/arch/arm/boot/dts/rk3229-box-a95xr1.dts
+new file mode 100644
+index 0000000000..cd2c8d2231
+--- /dev/null
++++ b/arch/arm/boot/dts/rk3229-box-a95xr1.dts
+@@ -0,0 +1,58 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++
++/dts-v1/;
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/pinctrl/rockchip.h>
++#include "rk3229-box.dtsi"
++
++/ {
++	model = "Rockchip RK3229 Box A95X-R1";
++
++	leds {
++		compatible = "gpio-leds";
++
++		led_blue {
++			gpios = <&gpio1 RK_PA7 GPIO_ACTIVE_LOW>;
++			default-state = "on";
++		};
++
++		led_red {
++			gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_LOW>;
++			default-state = "off";
++			linux,default-trigger = "rc-feedback";
++		};
++	};
++
++};
++
++&emmc {
++	mmc-hs200-1_8v;
++	status = "okay";
++};
++
++&gmac {
++	tx_delay = <0x26>;
++	rx_delay = <0x11>;
++};
++
++&ir_receiver {
++	status = "okay";
++};
++
++&power_key {
++	status = "okay";
++};
++
++&sdio {
++	mmc-pwrseq = <&sdio_pwrseq>;
++	status = "okay";
++};
++
++&sdmmc {
++	disable-wp;
++	status = "okay";
++};
++
++&usb_otg {
++	dr_mode = "host";
++};
+diff --git a/arch/arm/boot/dts/Makefile b/arch/arm/boot/dts/Makefile
+index b21b3a6464..865f1229f7 100644
+--- a/arch/arm/boot/dts/Makefile
++++ b/arch/arm/boot/dts/Makefile
+@@ -911,6 +911,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
+ 	rk3188-px3-evb.dtb \
+ 	rk3188-radxarock.dtb \
+ 	rk3228-evb.dtb \
++	rk3229-box-a95xr1.dtb \
+ 	rk3229-evb.dtb \
+ 	rk3229-xms6.dtb \
+ 	rk3288-evb-act8846.dtb \
+diff --git a/arch/arm/boot/dts/rk3228a-box.dtsi b/arch/arm/boot/dts/rk3228a-box.dtsi
+new file mode 100644
+index 0000000000..2b9cb9a00c
+--- /dev/null
++++ b/arch/arm/boot/dts/rk3228a-box.dtsi
+@@ -0,0 +1,12 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++
++/dts-v1/;
++
++#include "rk322x-box.dtsi"
++
++/ {
++
++	model = "Rockchip RK3229 Box";
++	compatible = "rockchip,rk3228a-box", "rockchip,rk3229";
++
++};
+diff --git a/arch/arm/boot/dts/rk3228a-box-h96mini.dts b/arch/arm/boot/dts/rk3228a-box-h96mini.dts
+new file mode 100644
+index 0000000000..716032b6ec
+--- /dev/null
++++ b/arch/arm/boot/dts/rk3228a-box-h96mini.dts
+@@ -0,0 +1,70 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++
++/dts-v1/;
++
++#include "rk3228a-box.dtsi"
++
++/ {
++	model = "RK3228a H96 mini";
++
++	leds {
++		compatible = "gpio-leds";
++
++		led_green {
++			gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
++			default-state = "on";
++		};
++
++		led_red {
++			gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
++			default-state = "off";
++		};
++	};
++
++};
++
++
++&emmc {
++	mmc-hs200-1_8v;
++	status = "okay";
++};
++
++&gmac {
++	tx_delay = <0x26>;
++	rx_delay = <0x11>;
++};
++
++&ir_receiver {
++	status = "okay";
++};
++
++&pinctrl {
++	wifi {
++		wifi_host_wake_l: wifi-host-wake-l {
++			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
++		};
++	};
++};
++
++&power_key {
++	status = "okay";
++};
++
++&sdio {
++	mmc-pwrseq = <&sdio_pwrseq>;
++	status = "okay";
++
++	brcmf: wifi@1 {
++		compatible = "brcm,bcm4330-fmac";
++		interrupt-parent = <&gpio0>;
++		interrupts = <RK_PD4 GPIO_ACTIVE_HIGH>;
++		interrupt-names = "host-wake";
++		brcm,drive-strength = <5>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&wifi_host_wake_l>;
++	};
++};
++
++&usb_otg {
++        dr_mode = "host";
++};
+diff --git a/arch/arm/boot/dts/Makefile b/arch/arm/boot/dts/Makefile
+index 865f1229f7..358bc4acab 100644
+--- a/arch/arm/boot/dts/Makefile
++++ b/arch/arm/boot/dts/Makefile
+@@ -910,6 +910,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
+ 	rk3188-bqedison2qc.dtb \
+ 	rk3188-px3-evb.dtb \
+ 	rk3188-radxarock.dtb \
++	rk3228a-box-h96mini.dtb \
+ 	rk3228-evb.dtb \
+ 	rk3229-box-a95xr1.dtb \
+ 	rk3229-evb.dtb \

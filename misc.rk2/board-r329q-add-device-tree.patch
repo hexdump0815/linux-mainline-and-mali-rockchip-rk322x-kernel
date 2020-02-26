@@ -1,0 +1,56 @@
+diff --git a/arch/arm/boot/dts/rk3229-r329q.dts b/arch/arm/boot/dts/rk3229-r329q.dts
+new file mode 100644
+index 000000000..ece3fdfd9
+--- /dev/null
++++ b/arch/arm/boot/dts/rk3229-r329q.dts
+@@ -0,0 +1,50 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++
++/dts-v1/;
++
++#include "rk3229-generic-tvbox.dtsi"
++
++/ {
++	model = "R329Q v3.x TV Box board";
++	compatible = "rockchip,rk3229-r329q", "rockchip,rk3229";
++
++	gpio-leds {
++
++		compatible = "gpio-leds";
++		pinctrl-names = "default";
++		pinctrl-0 = <&gpio_leds>;
++
++		heartbeat {
++			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
++			label = "r329q:red:state1";
++			linux,default-trigger = "mmc0";
++			default-state = "off";
++		};
++
++		mmc {
++			gpios = <&gpio3 21 GPIO_ACTIVE_LOW>;
++			label = "r329q:blue:state2";
++// 			linux,default-trigger = "mmc0";
++			default-state = "on";
++		};
++
++	};
++
++
++
++};
++
++&emmc {
++	status = "disabled";
++};
++
++&pinctrl {
++
++	gpio {
++		gpio_leds: gpio-leds {
++			rockchip,pins = <1 7 RK_FUNC_GPIO &pcfg_pull_none>,
++					<3 21 RK_FUNC_GPIO &pcfg_pull_none>;
++		};
++	};
++
++};

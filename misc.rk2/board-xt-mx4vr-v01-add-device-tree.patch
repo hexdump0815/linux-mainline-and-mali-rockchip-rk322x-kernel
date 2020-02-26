@@ -1,0 +1,57 @@
+diff --git a/arch/arm/boot/dts/rk3229-xt-mx4vr-v01.dts b/arch/arm/boot/dts/rk3229-xt-mx4vr-v01.dts
+new file mode 100644
+index 000000000..e8de976ec
+--- /dev/null
++++ b/arch/arm/boot/dts/rk3229-xt-mx4vr-v01.dts
+@@ -0,0 +1,51 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++
++/dts-v1/;
++
++#include "rk3229-generic-tvbox.dtsi"
++
++/ {
++	model = "Chiptrip xt-mx4vr-v01 TV Box board";
++	compatible = "chiptrip,xt-mx4vr-v01", "rockchip,rk3229";
++
++	gpio-leds {
++
++		compatible = "gpio-leds";
++		pinctrl-names = "default";
++		pinctrl-0 = <&gpio_leds>;
++
++		red {
++			gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
++			label = "xt-mx4vr-v01:red:state1";
++			linux,default-trigger = "mmc0";
++			default-state = "off";
++		};
++
++		blue {
++			gpios = <&gpio3 21 GPIO_ACTIVE_HIGH>;
++			label = "xt-mx4vr-v01:blue:state2";
++			default-state = "on";
++		};
++
++	};
++
++
++
++};
++
++&emmc {
++
++	mmc-hs200-1_8v;
++
++};
++
++&pinctrl {
++
++	gpio {
++		gpio_leds: gpio-leds {
++			rockchip,pins = <0 1 RK_FUNC_GPIO &pcfg_pull_none>,
++					<3 21 RK_FUNC_GPIO &pcfg_pull_none>;
++		};
++	};
++
++};
