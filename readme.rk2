@@ -71,3 +71,16 @@ cp -v /compile/doc/stable-r2/config.rk2 /compile/doc/stable-r2/config.rk2.old
 cp -v /compile/source/linux-stable-r2/.config /compile/doc/stable-r2/config.rk2
 cp -v /compile/source/linux-stable-r2/.config /compile/doc/stable-r2/config.rk2-${kver}
 cp -v /compile/source/linux-stable-r2/*.tar.gz /compile/result/stable-r2
+
+# /boot/extlinux/extlinux.conf
+TIMEOUT 30
+DEFAULT v5422
+
+MENU TITLE rk3229 boot options
+
+LABEL v5422
+      MENU LABEL v5.4.22 kernel
+      LINUX ../zImage-5.4.22-stb-rk2+
+      FDT ../dtb-5.4.22-stb-rk2+/rk3229-r329q.dtb
+      INITRD ../initrd.img-5.4.22-stb-rk2+
+      APPEND earlyprintk root=/dev/mmcblk0p3 console=ttyS2,115200n8 console=tty0 rootwait rootfstype=ext4 consoleblank=0 loglevel=8 fsck.repair=yes net.ifnames=0 ipv6.disable=1
