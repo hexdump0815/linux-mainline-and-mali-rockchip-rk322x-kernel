@@ -48,11 +48,20 @@ export ARCH=arm
 # make multi_v7_defconfig + fix options - see misc.rk2/options
 make oldconfig
 make -j 4 zImage dtbs modules
+cd tools/perf
+make
+cd ../power/cpupower
+make
+cd ../../..
 export kver=`make kernelrelease`
 echo ${kver}
 # remove debug info if there and not wanted
 # find . -type f -name '*.ko' | sudo xargs -n 1 objcopy --strip-unneeded
 make modules_install
+mkdir -p /lib/modules/${kver}/tools
+cp -v tools/perf/perf /lib/modules/${kver}/tools
+cp -v tools/power/cpupower/cpupower /lib/modules/${kver}/tools
+cp -v tools/power/cpupower/libcpupower.so.0.0.1 /lib/modules/${kver}/tools/libcpupower.so.0
 # make headers_install INSTALL_HDR_PATH=/usr
 cp -v .config /boot/config-${kver}
 # for all except amlogic 32bit socs
