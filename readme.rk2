@@ -1,18 +1,18 @@
-# patches from git commit 08c77e53b94ccf072c7dc6a9d3ebd9f088deaf7e of
-# https://github.com/paolosabatino/armbian-build.git - branch rkrk29 - path: patch/kernel/rk322x-current
-# kernel config armbian-build-rk332x/config/kernel/linux-rkrk2x-current.config
-# disabled LIMA for now
-#
 # directories:
 # - /compile/doc/stable-r2 - the files in this dir
 # - /compile/source/linux-stable-r2 - the kernel sources checked out from gitrepo
 # - /compile/result/stable-r2 - the resulting kernel, modules etc. tar.gz files
-#
+# name: stb-rk2
+
+# patches from git commit 08c77e53b94ccf072c7dc6a9d3ebd9f088deaf7e of
+# https://github.com/paolosabatino/armbian-build.git - branch rkrk29 - path: patch/kernel/rk322x-current
+# kernel config armbian-build-rk332x/config/kernel/linux-rkrk2x-current.config
+# disabled LIMA for now
+
 # patches:
 # not sure if this is needed - if yes it might get adapted for the 4.4 rockchip kernel
 # set mac addr on kernel cmdline - otherwise a random one is generated
 patch -p1 -N < /compile/doc/stable-r2/misc.rk2/gen-stmmac-mac-addr-on-kernel-cmdline-v5.3.patch
-#
 # armbian patches:
 patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-0001-rockchip-from-5.5.patch
 patch -p1 -N < /compile/doc/stable-r2/misc.rk2/01-linux-0002-rockchip-from-5.6.patch
@@ -41,9 +41,9 @@ patch -p1 -N < /compile/doc/stable-r2/misc.rk2/dtsi-rk322x-add-generic-tvbox.pat
 # compile fix
 #patch -p0 < /compile/doc/rockchip-rk332x/misc.rk2/zzz-fix-ssv6xxx-compile.patch
 
-
 cp /compile/doc/stable-r2/config.rk2 /compile/source/linux-stable-r2/.config
 cd /compile/source/linux-stable-r2
+
 export ARCH=arm
 # make multi_v7_defconfig + fix options - see misc.rk2/options
 make oldconfig
